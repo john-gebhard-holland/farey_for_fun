@@ -1,3 +1,16 @@
+function Fraction(numerator, denominator) {
+    return {
+        numerator: numerator,
+        denominator: denominator,
+        copy() {
+            return Fraction(this.numerator, this.denominator)
+        },
+        decimal() {
+            return this.numerator / this.denominator
+        }
+    }
+}
+
 function FareyNode(value, leftNum = 0, leftDen = 1, rightNum = 1, rightDen = 1) {
     return {
         value,
@@ -133,15 +146,18 @@ function FareyNestedIntervalSet() {
         },
         //appends as sibling to the selected node
         append(value, node) {
-            let left, right = this.findNeighbors(node)
+            let [left, right] = this.findNeighbors(node)
 
             // if left is an ancestor of right, then search left until we find what the ancestor of left is
             let parent = this.getParent(node);
 
             if (parent) {
+                // if we have a parent:
+                //   use right.left if parent.isAncestor(right), else use parent.right
                 let rightNum = right.leftNum + (left ? left.leftNum : parent.leftNum)
                 let rightDen = right.leftDen + (left ? left.leftDen : parent.leftDen)
 
+                //   use left.right if parent.isAncestor(left), else use parent.left
                 let leftNum = right.leftNum + rightNum
                 let leftDen = right.leftDen + rightDen
 
@@ -167,11 +183,14 @@ function FareyNestedIntervalSet() {
                 //  as it is no longer the last node in the set
                 let rightNum = 1
                 let rightDen = 1
-
+                debugger;
                 // the selected node's right value becomes its left / right median
                 // the appending node's left value becomes median of that + 1/1
                 let newRightNum = node.leftNum + node.rightNum
                 let newRightDen = node.leftDen + node.rightDen
+
+                node.rightNum = newRightNum
+                node.rightDen = newRightDen
 
                 let leftNum = newRightNum + 1
                 let leftDen = newRightDen + 1
@@ -218,6 +237,9 @@ function FareyNestedIntervalSet() {
                 // the appending node's left value becomes median of that + 0/1
                 newLeftNum = node.leftNum + node.rightNum
                 newLeftDen = node.leftDen + node.rightDen
+
+                node.leftNum = newLeftNum
+                node.leftDen = newLeftDen
 
                 leftNum = newRightNum + 0
                 leftDen = newRightDen + 1
@@ -294,13 +316,22 @@ function FareyNestedIntervalSet() {
             }
 
             if (set.length == 1) {
-                return node.posGreaterThan(set[0]) ? [set[0], undefined] : [undefined, set[0]];
+                if (set[0] == node) {
+                    return [];
+                } else {
+                    return node.posGreaterThan(set[0]) ? [set[0], undefined] : [undefined, set[0]];
+                }
             }
 
             let left = undefined, right = undefined;
 
             for (let i = 0; i < set.length; i++) {
                 let n = set[i]
+
+                if (n == node) {
+                    // if we're already in the set, we do not want to report as our own neighbor
+                    continue;
+                }
 
                 if (n.rightDecimal() < node.leftDecimal()) {
                     if (!left || left.posLessThan(n)) {
@@ -323,7 +354,7 @@ let set = FareyNestedIntervalSet()
 let root = set.insert(1)
 let rootSibling = set.append(2, root)
 
-let rootChild = set.addChild(3, root)
-let rootChildSibling = set.append(4, rootChild)
+//let rootChild = set.addChild(3, root)
+//let rootChildSibling = set.append(4, rootChild)
 
 console.log(set.getSet())
