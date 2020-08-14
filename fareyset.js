@@ -451,3 +451,4 @@ console.log(set.getSet())
 // huh? why?
 console.log(root.isAncestor(rootChild))
 console.log(root.isAncestor(rootChildSibling))
+console.log(set.getDescendents(root))
