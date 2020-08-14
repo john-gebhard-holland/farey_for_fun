@@ -241,8 +241,10 @@ function FareyNestedIntervalSet() {
                 // the appending node's left value becomes median of that + 0/1
                 // TODO: NOTE: this may have a bug if the selected node has children
                 //   to fix this the new rightFraction becomes the node.right.medianTo(last_child.right)
-                if (this.hasChildren(node)) {
-                    let lastChild = this.getLastDescendent(node)
+                let lastChild;
+                let hasChildren = this.hasChildren(node)
+                if (hasChildren) {
+                    lastChild = this.getLastDescendent(node)
                     newRightFraction = node.right.mediantTo(lastChild.right)
                     node.right = newRightFraction.copy()
                     leftFraction = newRightFraction.copy()
@@ -257,6 +259,7 @@ function FareyNestedIntervalSet() {
                 }
 
                 newNode = FareyNode(value, leftFraction, rightFraction)
+                set.splice(hasChildren ? set.indexOf(lastCHild) : set.indexOf(node), 0, newNode)
 
                 return newNode
             }
@@ -278,8 +281,8 @@ function FareyNestedIntervalSet() {
                 rightFraction = left.right.mediantTo(leftFraction)
 
                 newNode = FareyNode(value, leftFraction, rightFraction)
-
-                set.splice(set.indexOf((left && parent.isAncestor(left) ? left : parent)), 0, newNode)
+                
+                set.splice((left && parent.isAncestor(left)) ? set.indexOf(left) : set.indexOf(parent) - 1, 0, newNode)
 
                 return newNode
             } else if (left) {
@@ -289,7 +292,7 @@ function FareyNestedIntervalSet() {
 
                 newNode = FareyNode(value, leftFraction, rightFraction)
 
-                set.splice(set.indexOf(node), 0, newNode)
+                set.splice(set.indexOf(node) - 1, 0, newNode)
 
                 return newNode
             } else {
@@ -315,6 +318,8 @@ function FareyNestedIntervalSet() {
                 }
 
                 newNode = FareyNode(value, leftFraction, rightFraction)
+
+                set.splice(set.indexOf(node) - 1, 0, newNode)
 
                 return newNode
             }
@@ -438,7 +443,11 @@ let set = FareyNestedIntervalSet()
 let root = set.insert(1)
 let rootSibling = set.append(2, root)
 
-//let rootChild = set.addChild(3, root)
-//let rootChildSibling = set.append(4, rootChild)
+let rootChild = set.addChild(3, root)
+let rootChildSibling = set.append(4, rootChild)
 
 console.log(set.getSet())
+
+// huh? why?
+console.log(root.isAncestor(rootChild))
+console.log(root.isAncestor(rootChildSibling))
