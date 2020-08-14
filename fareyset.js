@@ -1,3 +1,17 @@
+function additionDoesOverflow(a, b) {
+    // from https://www.algotech.solutions/blog/javascript/handle-number-overflow-javascript/
+    let c = a + b
+
+    return (a !== c - b) || (b !== c - a)
+}
+
+function multiplicationDoesOverflow(a, b) {
+    // from https://www.algotech.solutions/blog/javascript/handle-number-overflow-javascript/
+    let c = a * b
+
+    return (a !== c / b) || (b !== c / a)
+}
+
 function Fraction(numerator, denominator) {
     return {
         numerator: numerator,
@@ -7,38 +21,86 @@ function Fraction(numerator, denominator) {
         },
         decimal() {
             return this.numerator / this.denominator
+        },
+        equals(other) {
+            return this.numerator == other.numerator && this.denominator == other.denominator
+        },
+        crossMultiply(against) {
+            return Fraction(this.numerator * against.denominator, this.denominator * against.denominator)
+        },
+        fractionAdditionOverflows(against) {
+            if (multiplicationDoesOverflow(this.denominator, against.denominator) || 
+                multiplicationDoesOverflow(this.numerator, against.denominator) || 
+                multiplicationDoesOverflow(against.numerator, this.denominator) ||
+                additionDoesOverflow(this.numerator * against.denominator, against.numerator * this.denominator)) {
+                return false;
+            }
+
+            return true;
+        },
+        medianTo(other) {
+            return Fraction(this.numerator + other.numerator, this.denominator + other.denominator)
+        },
+        gt(other) { // greater than
+            let overflows = this.fractionAdditionOverflows(other)
+
+            if (overflows) {
+                if (isNaN(this.decimal()) || isNaN(other.decimal())) {
+                    throw new Error("bounds of set have been met")
+                }
+                return this.decimal() > other.decimal()
+            } else {
+                let cross = this.crossMultiply(other)
+                let otherCross = other.crossMultiply(this)
+
+                if (isNaN(cross.numerator) || isNaN(cross.denominator) || isNaN(otherCross.numerator) || isNaN(otherCross.denominator)) {
+                    throw new Error("overflow function broken")
+                }
+
+                return cross[0] > otherCross[0]
+            }
+        },
+        lt(other) { // less than
+            let overflows = this.fractionAdditionOverflows(other)
+
+            if (overflows) {
+                if (isNaN(this.decimal()) || isNaN(other.decimal())) {
+                    throw new Error("bounds of set have been met")
+                }
+
+                return this.decimal() < other.decimal()
+            } else {
+                let cross = this.crossMultiply(other)
+                let otherCross = other.crossMultiply(this)
+
+                if (isNaN(cross.numerator) || isNaN(cross.denominator) || isNaN(otherCross.numerator) || isNaN(otherCross.denominator)) {
+                    throw new Error("overflow function broken")
+                }
+
+                return cross[0] < otherCross[0]
+            }
         }
     }
 }
 
-function FareyNode(value, leftNum = 0, leftDen = 1, rightNum = 1, rightDen = 1) {
+function FareyNode(value, left = Fraction(0, 1), right = Fraction(1, 1)) {
     return {
         value,
-        leftNum,
-        leftDen,
-        rightDen,
-        rightNum,
-        leftDecimal() {
-            return this.leftNum / this.leftDen
-        },
-        rightDecimal() {
-            return this.rightNum / this.rightDen
-        },
+        left, 
+        right,
         equals(other) {
-            return this.leftNum == other.leftNum &&
-                   this.leftDen == other.leftDen &&
-                   this.rightNum == other.rightNum &&
-                   this.rightDen == other.rightDen &&
+            return this.left.equals(other.left) &&
+                   this.right.equals(other.right) &&
                    this.value == other.value
         },
         posGreaterThan(other) {
-            return this.leftDecimal() > other.leftDecimal()
+            return this.left.gt(other.left)
         },
         posLessThan(other) {
-            return this.leftDecimal() < other.leftDecimal()
+            return this.left.lt(other.left)
         },
         isAncestor(other) {
-            return this.leftDecimal() < other.leftDecimal() && this.rightDecimal() > other.rightDecimal()
+            return this.left.lt(other.left) && this.right.gt(other.right)
         }
     }
 }
@@ -72,22 +134,22 @@ function FareyNestedIntervalSet() {
             //first get the median of left and right,
             // then insert append or prepend to whatever is closest to that
             if (left.isAncestor(right)) {
-                return this.addChild(value, left, withRespectTo = right)
+                return this.addChild(value, left)
             } else if (right.isAncestor(left)) {
-                return this.addChild(value, right, withRespectTo = left)
+                return this.addChild(value, right)
             }
 
             // neither is ancestor of eachother
-            let median = (left.rightNum + right.leftNum) / (left.rightDen + right.leftDen)
+            let median = left.right.medianTo(right.left)
 
-            let searchAsc = (median - left.rightDecimal()) < (right.leftDecimal() - median) ? true : false;
+            let searchAsc = (median.decimal() - left.right.decimal()) < (right.left.decimal() - median.decimal()) ? true : false;
 
             let prev;
             if (searchAsc) {
                 let searchNode = left;
                 prev = searchNode;
                 let i = set.indexOf(searchNode)
-                while ((median - searchNode.rightDecimal()) > 0) {
+                while ((median - searchNode.right.decimal()) > 0) {
                     if (i + 1 >= set.length) break;
 
                     i++;
@@ -98,7 +160,7 @@ function FareyNestedIntervalSet() {
                 let searchNode = left;
                 prev = searchNode;
                 let i = set.indexOf(searchNode)
-                while ((searchNode.leftDecimal() - median) > 0) {
+                while ((searchNode.left.decimal() - median) > 0) {
                     if (i - 1 < 0) break;
                     
                     i--;
@@ -112,25 +174,21 @@ function FareyNestedIntervalSet() {
             if (searchAsc) {
                 let leftOfMedian = this.findNeighbors(medianNode)[0]
 
-                let leftNum = leftOfMedian.rightNum + medianNode.leftNum
-                let leftDen = leftOfMedian.rightDen + medianNode.leftDen
+                let leftFraction = leftOfMedian.right.medianTo(medianNode.left)
 
-                let rightNum = leftNum + medianNode.leftNum
-                let rightDen = leftDen + medianNode.leftDen
+                let rightFraction = leftFraction.medianTo(medianNode.left)
 
-                let newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
+                let newNode = FareyNode(value, leftFraction, rightFraction)
 
                 set.splice(set.indexOf(leftOfMedian), 0, newNode)
             } else {
                 let rightOfMedian = this.findNeighbors(medianNode)[1]
                 
-                let leftNum = medianNode.rightNum + rightOfMedian.leftNum
-                let leftDen = medianNode.rightDen + rightOfMedian.leftDen
+                let leftFraction = medianNode.right.medianTo(rightOfMedian.left)
 
-                let rightNum = leftNum + medianNode.leftNum
-                let rightDen = leftDen + medianNode.leftDen
+                let rightFraction = leftFraction.medianTo(medianNode.left)
 
-                let newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
+                let newNode = FareyNode(value, leftFraction, rightFraction)
 
                 set.splice(set.indexOf(rightOfMedian), 0, newNode)
             }
@@ -154,26 +212,22 @@ function FareyNestedIntervalSet() {
             if (parent) {
                 // if we have a parent:
                 //   use right.left if parent.isAncestor(right), else use parent.right
-                let rightNum = right.leftNum + (left ? left.leftNum : parent.leftNum)
-                let rightDen = right.leftDen + (left ? left.leftDen : parent.leftDen)
+                let rightFraction = right.left.mediantTo(left ? left.left : parent.left)
 
                 //   use left.right if parent.isAncestor(left), else use parent.left
-                let leftNum = right.leftNum + rightNum
-                let leftDen = right.leftDen + rightDen
+                let leftFraction = right.left.mediantTo(rightFraction)
 
-                let newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
+                let newNode = FareyNode(value, leftFraction, rightFraction)
 
                 set.splice(set.indexOf((left ? left : parent)), 0, newNode)
 
                 return newNode
             } else if (right) {
-                let rightNum = node.rightNum + right.leftNum
-                let rightDen = node.rightDen + right.leftDen
+                let rightFraction = node.right.medianTo(right.left)
 
-                let leftNum = node.rightNum + rightNum
-                let leftDen = node.rightNum + rightDen
+                let leftFraction = node.right.medianTo(rightFraction)
 
-                let newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
+                let newNode = FareyNode(value, leftFraction, rightFraction)
 
                 set.splice(set.indexOf(node), 0, newNode)
 
@@ -181,48 +235,47 @@ function FareyNestedIntervalSet() {
             } else {
                 // we don't have a right node, so we need to modify the selected node's right value
                 //  as it is no longer the last node in the set
-                let rightNum = 1
-                let rightDen = 1
-                debugger;
+                
                 // the selected node's right value becomes its left / right median
                 // the appending node's left value becomes median of that + 1/1
-                let newRightNum = node.leftNum + node.rightNum
-                let newRightDen = node.leftDen + node.rightDen
+                let newRightFraction = node.left.medianTo(node.right)
 
-                node.rightNum = newRightNum
-                node.rightDen = newRightDen
+                node.right = newRightFraction
 
-                let leftNum = newRightNum + 1
-                let leftDen = newRightDen + 1
+                let leftFraction = newRightFraction.copy()
+                leftFraction.numerator += 1
+                leftFraction.denominator += 1
 
-                let newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
-
-                node.rightNum = newRightNum
-                node.rightDen = newRightDen
-
-                return newNode
+                return FareyNode(value, leftFraction, rightFraction)
             }
         },
         //prepends as sibling to the selected node
         prepend(value, node) {
             let left, _ = this.findNeighbors(node)
-            let leftNum, leftDen, rightNum, rightDen, newNode, newLeftNum, newLeftDen;
+            let leftFraction, rightFraction, newNode, newLeftFraction;
 
             // if left is an ancestor of right, then search left until we find what the ancestor of left is
             let parent = this.getParent(node);
 
             if (parent) {
-                let parentLeft = parent.leftDecimal();
+                // if we have a parent:
+                //   use left.right if parent.isAncestor(right), else use parent.right
+                leftFraction = left.right.mediantTo(left && !parent.isAncestor(left) ? left.left : parent.left)
 
-                return this.addChild(value, parent, this.findNeighbors(node)[0])
+                //   use left.right if parent.isAncestor(left), else use parent.left
+                rightFraction = left.right.mediantTo(leftFraction)
+
+                newNode = FareyNode(value, leftFraction, rightFraction)
+
+                set.splice(set.indexOf((left && parent.isAncestor(left) ? left : parent)), 0, newNode)
+
+                return newNode
             } else if (left) {
-                leftNum = node.leftNum + left.rightNum
-                leftDen = node.rightDen + left.rightDen
+                leftFraction = node.left.medianTo(left.right)
 
-                rightNum = node.leftNum + leftNum
-                rightDen = node.leftDen + leftDen
+                rightFraction = node.left.medianTo(leftFraction)
 
-                newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
+                newNode = FareyNode(value, leftFraction, rightFraction)
 
                 set.splice(set.indexOf(node), 0, newNode)
 
@@ -230,27 +283,40 @@ function FareyNestedIntervalSet() {
             } else {
                 // we don't have a left node, so we need to modify the selected node's left value
                 //  as it is no longer the last node in the set
-                leftNum = 0
-                leftDen = 1
+                leftFraction = Fraction(0, 1)
 
                 // the selected node's left value becomes its left / right median
                 // the appending node's left value becomes median of that + 0/1
-                newLeftNum = node.leftNum + node.rightNum
-                newLeftDen = node.leftDen + node.rightDen
+                // TODO: NOTE: this may have a bug if the selected node has children
+                //   to fix this the new leftFraction becomes the node.left.medianTo(first_child.left)
+                if (this.hasChildren(node)) {
+                    let firstChild = this.getFirstDescendent(node)
+                    newLeftFraction = node.left.mediantTo(firstChild.left)
+                    node.left = newLeftFraction.copy()
+                    rightFraction = newLeftFraction.copy()
+                    rightFraction.denominator += 1
+                } else {
+                    newLeftFraction = node.left.medianTo(node.right)    
+                    node.left = newLeftFraction.copy()
+                    rightFraction = newLeftFraction.copy()
+                    rightFraction.denominator += 1    
+                }
 
-                node.leftNum = newLeftNum
-                node.leftDen = newLeftDen
-
-                leftNum = newRightNum + 0
-                leftDen = newRightDen + 1
-
-                newNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
-
-                node.leftNum = newLeftNum
-                node.leftDen = newLeftDen
+                newNode = FareyNode(value, leftFraction, rightFraction)
 
                 return newNode
             }
+        },
+        hasChildren(node) {
+            let index = set.indexOf(node)
+
+            if (index < 0) return;
+        
+            if (index + 1  > set.length - 1) {
+                return false;
+            }
+
+            return node.isAncestor(set[i+1])
         },
         addChild(value, node) {
             let descendents = this.getDescendents(node).reverse()
@@ -258,13 +324,11 @@ function FareyNestedIntervalSet() {
             
             if (!lastDirectChild) {
                 // we don't have any descendents then!
-                let rightNum = node.leftNum + node.rightNum
-                let rightDen = node.leftDen + node.rightDen
+                let rightFraction = node.left.medianTo(node.right)
 
-                let leftNum = node.leftNum + rightNum
-                let leftDen = node.leftDen + rightDen
+                let leftFraction = node.left.medianTo(rightFraction)
 
-                let childNode = FareyNode(value, leftNum, leftDen, rightNum, rightDen)
+                let childNode = FareyNode(value, leftFraction, rightFraction)
 
                 set.splice(set.indexOf(node), 0, childNode)
 
@@ -273,6 +337,10 @@ function FareyNestedIntervalSet() {
                 this.append(value, lastDirectChild)
             }
 
+        },
+        getFirstDescendent(node) {
+            let start = set.indexOf(node)
+            return start+1 > set.length-1 || !node.isAncestor(set[start+1]) ? undefined : set[start+1]
         },
         getDescendents(node) {
             let start = set.indexOf(node)
@@ -308,7 +376,7 @@ function FareyNestedIntervalSet() {
             return set.slice()
         },
         getMedian(left, right) {
-            return (left.rightNum + right.leftNum) / (left.rightDen + right.leftDen)
+            return left.right.medianTo(right.left)
         },
         findNeighbors(node) {
             if (set.length == 0) {
@@ -333,11 +401,11 @@ function FareyNestedIntervalSet() {
                     continue;
                 }
 
-                if (n.rightDecimal() < node.leftDecimal()) {
+                if (n.right.decimal() < node.left.decimal()) {
                     if (!left || left.posLessThan(n)) {
                         left = n;
                     }
-                } else if (n.leftDecimal() > node.rightDecimal()) {
+                } else if (n.left.decimal() > node.right.decimal()) {
                     if (!right || right.posGreaterThan(n)) {
                         right = n
                     }
