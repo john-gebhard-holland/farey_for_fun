@@ -111,7 +111,7 @@ function FareyNestedIntervalSet() {
     return {
         insert(value, left = undefined, right = undefined) {
             if (!set.length) {
-                set.push(FareyNode(value, 0, 1, 1, 1))
+                set.push(FareyNode(value, Fraction(0, 1), Fraction(1, 1)))
                 return set[0]
             } else if (!left && !right) {
                 throw new Error("set is not empty, cannot insert a node without left or right nodes")
@@ -233,20 +233,32 @@ function FareyNestedIntervalSet() {
 
                 return newNode
             } else {
-                // we don't have a right node, so we need to modify the selected node's right value
+                 // we don't have a left node, so we need to modify the selected node's left value
                 //  as it is no longer the last node in the set
-                
+                rightFraction = Fraction(1, 1)
+
                 // the selected node's right value becomes its left / right median
-                // the appending node's left value becomes median of that + 1/1
-                let newRightFraction = node.left.medianTo(node.right)
+                // the appending node's left value becomes median of that + 0/1
+                // TODO: NOTE: this may have a bug if the selected node has children
+                //   to fix this the new rightFraction becomes the node.right.medianTo(last_child.right)
+                if (this.hasChildren(node)) {
+                    let lastChild = this.getLastDescendent(node)
+                    newRightFraction = node.right.mediantTo(lastChild.right)
+                    node.right = newRightFraction.copy()
+                    leftFraction = newRightFraction.copy()
+                    leftFraction.numerator += 1
+                    leftFractionn.denominator += 1
+                } else {
+                    newRightFraction = node.right.medianTo(node.left)
+                    node.right = newRightFraction.copy()
+                    leftFraction = newRightFraction.copy()
+                    leftFraction.numerator += 1
+                    leftFraction.denominator += 1    
+                }
 
-                node.right = newRightFraction
+                newNode = FareyNode(value, leftFraction, rightFraction)
 
-                let leftFraction = newRightFraction.copy()
-                leftFraction.numerator += 1
-                leftFraction.denominator += 1
-
-                return FareyNode(value, leftFraction, rightFraction)
+                return newNode
             }
         },
         //prepends as sibling to the selected node
@@ -341,6 +353,10 @@ function FareyNestedIntervalSet() {
         getFirstDescendent(node) {
             let start = set.indexOf(node)
             return start+1 > set.length-1 || !node.isAncestor(set[start+1]) ? undefined : set[start+1]
+        },
+        getLastDescendent(node) {
+            let descendents = this.getDescendents(node)
+            return descendents.length ? descendents[descendents.length - 1] : undefined
         },
         getDescendents(node) {
             let start = set.indexOf(node)
