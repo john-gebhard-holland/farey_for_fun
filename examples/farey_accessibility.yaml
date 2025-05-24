@@ -1,0 +1,116 @@
+metadata:
+  name: "Farey Accessibility Overlay"
+  version: "1.0"
+  timestamp: "2024-03-23T02:15:00Z"
+  description: "Metal-based screen capture and accessibility overlay for Farey sequences"
+
+metal_capture:
+  format: "texture2d"
+  dimensions: [2048, 2048]
+  pixel_format: "rgba8unorm"
+  storage_mode: "private"
+  usage: ["shader_read", "shader_write"]
+  
+  capture_pipeline:
+    - name: "screen_capture"
+      type: "compute"
+      code: |
+        kernel void captureScreen(
+          texture2d<float, access::read> input,
+          texture2d<float, access::write> output,
+          uint2 gid [[thread_position_in_grid]]
+        ) {
+          float4 color = input.read(gid);
+          output.write(color, gid);
+        }
+      properties:
+        threadgroup_size: [16, 16]
+        max_threads: 1024
+
+  accessibility_buffer:
+    type: "structured_buffer"
+    stride: 64
+    elements: 1000
+    properties:
+      storage_mode: "shared"
+      cpu_cache_mode: "write_combined"
+
+accessibility:
+  overlay:
+    type: "metal_layer"
+    format: "rgba8unorm"
+    properties:
+      framebuffer_only: false
+      presents_with_transaction: true
+      colorspace: "srgb"
+
+  regions:
+    - type: "fraction"
+      properties:
+        label: "Fraction {num}/{den}"
+        value: "{value}"
+        description: "Farey fraction with denominator {den}"
+        importance: "high"
+        interaction: "selectable"
+
+    - type: "connection"
+      properties:
+        label: "Connection between {frac1} and {frac2}"
+        description: "Adjacent fractions in sequence"
+        importance: "medium"
+        interaction: "none"
+
+  voice_commands:
+    - command: "select fraction"
+      action: "highlight"
+      feedback: "spoken"
+    - command: "describe region"
+      action: "read_properties"
+      feedback: "spoken"
+    - command: "navigate to"
+      action: "move_focus"
+      feedback: "haptic"
+
+  screen_reader:
+    format: "voiceover"
+    properties:
+      language: "en"
+      rate: 1.0
+      pitch: 1.0
+    elements:
+      - type: "fraction"
+        announcement: "Fraction {num} over {den}, value {value}"
+      - type: "connection"
+        announcement: "Connected to {next_fraction}"
+      - type: "region"
+        announcement: "Region containing {count} fractions"
+
+performance:
+  capture:
+    frame_time: "16.67ms"  # 60 FPS
+    memory_usage: "16MB"
+    gpu_utilization: "30%"
+  overlay:
+    render_time: "5ms"
+    memory_usage: "8MB"
+    cpu_utilization: "10%"
+
+visualization:
+  highlight:
+    type: "pulse"
+    color: "#FFD700"
+    duration: 0.5
+    properties:
+      intensity: 0.8
+      frequency: 2.0
+  focus:
+    type: "ring"
+    color: "#00FF00"
+    size: 2.0
+    properties:
+      thickness: 2
+      opacity: 0.8
+  feedback:
+    type: "haptic"
+    intensity: 0.5
+    duration: 0.1 

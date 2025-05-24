@@ -1,0 +1,75 @@
+metadata:
+  name: "Farey Sequence F5"
+  order: 5
+  method: "sylvester"
+  timestamp: "2024-03-23T01:55:00Z"
+  description: "Standard Farey sequence of order 5"
+
+sequence:
+  - fraction: "0/1"
+    value: 0.0
+    egyptian: []
+    connections: ["1/5"]
+    properties:
+      is_unit: false
+      is_irreducible: true
+      denominator: 1
+
+  - fraction: "1/5"
+    value: 0.2
+    egyptian: ["1/5"]
+    connections: ["0/1", "1/4"]
+    properties:
+      is_unit: true
+      is_irreducible: true
+      denominator: 5
+
+  - fraction: "1/4"
+    value: 0.25
+    egyptian: ["1/4"]
+    connections: ["1/5", "1/3"]
+    properties:
+      is_unit: true
+      is_irreducible: true
+      denominator: 4
+
+  - fraction: "1/3"
+    value: 0.333...
+    egyptian: ["1/3"]
+    connections: ["1/4", "2/5"]
+    properties:
+      is_unit: true
+      is_irreducible: true
+      denominator: 3
+
+  - fraction: "2/5"
+    value: 0.4
+    egyptian: ["1/3", "1/15"]
+    connections: ["1/3", "1/2"]
+    properties:
+      is_unit: false
+      is_irreducible: true
+      denominator: 5
+
+  - fraction: "1/2"
+    value: 0.5
+    egyptian: ["1/2"]
+    connections: ["2/5", "3/5"]
+    properties:
+      is_unit: true
+      is_irreducible: true
+      denominator: 2
+
+visualization:
+  layout: "verlet"
+  settings:
+    spring_constant: 0.5
+    density_force: 0.8
+    damping: 0.5
+  colors:
+    nodes: "#4CAF50"
+    springs: "rgba(0, 0, 0, 0.2)"
+    background: "#ffffff"
+  animation:
+    duration: 2.0
+    easing: "cubic-bezier(0.4, 0, 0.2, 1)" 
