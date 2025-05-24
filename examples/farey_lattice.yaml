@@ -1,0 +1,78 @@
+metadata:
+  name: "Farey Lattice L4"
+  radius: 4
+  method: "lattice"
+  timestamp: "2024-03-23T01:55:00Z"
+  description: "Farey lattice points within radius 4"
+
+lattice:
+  points:
+    - fraction: "0/1"
+      coordinates: [0, 1]
+      value: 0.0
+      neighbors: ["1/4", "1/3", "1/2"]
+      properties:
+        is_origin: true
+        distance: 0
+
+    - fraction: "1/4"
+      coordinates: [1, 4]
+      value: 0.25
+      neighbors: ["0/1", "1/3", "2/5"]
+      properties:
+        is_origin: false
+        distance: 1
+
+    - fraction: "1/3"
+      coordinates: [1, 3]
+      value: 0.333...
+      neighbors: ["0/1", "1/4", "1/2"]
+      properties:
+        is_origin: false
+        distance: 1
+
+    - fraction: "1/2"
+      coordinates: [1, 2]
+      value: 0.5
+      neighbors: ["0/1", "1/3", "2/3"]
+      properties:
+        is_origin: false
+        distance: 1
+
+  connections:
+    - from: "0/1"
+      to: "1/4"
+      weight: 1
+    - from: "0/1"
+      to: "1/3"
+      weight: 1
+    - from: "0/1"
+      to: "1/2"
+      weight: 1
+    - from: "1/4"
+      to: "1/3"
+      weight: 1
+    - from: "1/3"
+      to: "1/2"
+      weight: 1
+
+properties:
+  total_points: 4
+  total_connections: 5
+  max_distance: 1
+  density: 0.25
+
+visualization:
+  layout: "lattice"
+  settings:
+    point_radius: 20
+    connection_width: 2
+    grid_size: 50
+  colors:
+    points: "#4CAF50"
+    connections: "rgba(0, 0, 0, 0.2)"
+    grid: "rgba(200, 200, 200, 0.3)"
+    background: "#ffffff"
+  animation:
+    duration: 1.0
+    easing: "linear" 

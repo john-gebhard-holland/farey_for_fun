@@ -1,0 +1,59 @@
+metadata:
+  name: "Farey Tree T3"
+  depth: 3
+  method: "stern-brocot"
+  timestamp: "2024-03-23T01:55:00Z"
+  description: "Stern-Brocot tree up to depth 3"
+
+tree:
+  root:
+    fraction: "1/1"
+    value: 1.0
+    children:
+      left:
+        fraction: "1/2"
+        value: 0.5
+        children:
+          left:
+            fraction: "1/3"
+            value: 0.333...
+            children: {}
+          right:
+            fraction: "2/3"
+            value: 0.666...
+            children: {}
+      right:
+        fraction: "2/1"
+        value: 2.0
+        children:
+          left:
+            fraction: "3/2"
+            value: 1.5
+            children: {}
+          right:
+            fraction: "3/1"
+            value: 3.0
+            children: {}
+
+properties:
+  total_nodes: 7
+  max_depth: 3
+  leaf_nodes: 4
+  path_lengths:
+    min: 1
+    max: 3
+    average: 2.0
+
+visualization:
+  layout: "tree"
+  settings:
+    node_spacing: 100
+    level_spacing: 150
+    angle: 45
+  colors:
+    nodes: "#4CAF50"
+    edges: "rgba(0, 0, 0, 0.2)"
+    background: "#ffffff"
+  animation:
+    duration: 1.5
+    easing: "ease-in-out" 

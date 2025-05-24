@@ -1,0 +1,102 @@
+metadata:
+  name: "Farey Shader Cache"
+  version: "1.0"
+  timestamp: "2024-03-23T02:10:00Z"
+  description: "Shader-optimized color cache for Farey sequences"
+
+shader_cache:
+  format: "texture_atlas"
+  dimensions: [2048, 2048]  # Power of 2 for optimal GPU memory alignment
+  channels: 4  # RGBA
+  precision: "float32"
+  
+  color_mapping:
+    type: "hash_based"
+    hash_function: "fraction_to_uv"
+    properties:
+      collision_free: true
+      uniform_distribution: true
+      gpu_friendly: true
+
+  hsl_vectors:
+    - fraction: "0/1"
+      hsl: [0.0, 0.0, 0.5]  # [hue, saturation, lightness]
+      alpha: 1.0
+      texture_coords: [0.0, 0.0]
+      properties:
+        is_unit: false
+        denominator: 1
+
+    - fraction: "1/2"
+      hsl: [0.5, 1.0, 0.5]
+      alpha: 1.0
+      texture_coords: [0.5, 0.5]
+      properties:
+        is_unit: true
+        denominator: 2
+
+  lookup_tables:
+    - name: "denominator_to_hue"
+      type: "1D_texture"
+      size: 1024
+      format: "r32f"
+      mapping: "linear"
+      properties:
+        wrap_mode: "clamp"
+        filter: "linear"
+
+    - name: "numerator_to_saturation"
+      type: "1D_texture"
+      size: 1024
+      format: "r32f"
+      mapping: "exponential"
+      properties:
+        wrap_mode: "clamp"
+        filter: "linear"
+
+  shader_functions:
+    - name: "fraction_to_color"
+      type: "glsl"
+      code: |
+        vec4 getFareyColor(int num, int den) {
+          float hue = texture(denominator_to_hue, float(den) / 1024.0).r;
+          float sat = texture(numerator_to_saturation, float(num) / 1024.0).r;
+          return vec4(hsl2rgb(hue, sat, 0.5), 1.0);
+        }
+      properties:
+        precision: "highp"
+        optimization: "unrolled"
+
+  performance:
+    lookup_time: "O(1)"
+    memory_usage: "8MB"
+    texture_switches: 0
+    cache_hits: "99.9%"
+
+visualization:
+  shader_effects:
+    - name: "fraction_glow"
+      type: "post_process"
+      parameters:
+        intensity: 0.5
+        radius: 2.0
+      code: |
+        vec4 applyGlow(vec4 color, float den) {
+          return color * (1.0 + 0.5 * sin(den * 0.1));
+        }
+
+    - name: "density_flow"
+      type: "compute"
+      parameters:
+        speed: 1.0
+        scale: 0.5
+      code: |
+        vec4 applyFlow(vec4 color, float den) {
+          return color * (1.0 + 0.2 * sin(den * 0.05 + time));
+        }
+
+  optimization:
+    batch_size: 1024
+    instancing: true
+    culling: "frustum"
+    lod_levels: 4 

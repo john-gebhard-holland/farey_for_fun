@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Farey Set Visualizer</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        .visualization {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-grow: 1;
+            position: relative;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        input, button, select {
+            margin: 5px 0;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .node-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .node-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s ease;
+        }
+        .node-item:hover {
+            background: #f5f5f5;
+        }
+        .node-item button {
+            width: auto;
+            padding: 4px 8px;
+            background: #f44336;
+        }
+        .node-item .egyptian {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 10px;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .visualization-options {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .increment-controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 4px;
+        }
+        .increment-row {
+            display: flex;
+            gap: 10px;
+            margin: 5px 0;
+        }
+        .increment-row input {
+            width: 60px;
+        }
+        .increment-row label {
+            flex-grow: 1;
+        }
+        .sequence-controls {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        .auto-play {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .auto-play input[type="range"] {
+            flex-grow: 1;
+        }
+        .auto-play span {
+            min-width: 40px;
+            text-align: right;
+        }
+        .stats-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .lattice-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .test-mode {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .test-results {
+            font-family: monospace;
+            white-space: pre;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h2>Farey Set Controls</h2>
+            <div>
+                <label for="numerator">Numerator:</label>
+                <input type="number" id="numerator" min="0" value="1">
+            </div>
+            <div>
+                <label for="denominator">Denominator:</label>
+                <input type="number" id="denominator" min="1" value="2">
+            </div>
+            <button onclick="addNode()">Add Node</button>
+
+            <div class="increment-controls">
+                <h3>Auto Increment</h3>
+                <div class="increment-row">
+                    <label>Numerator Step:</label>
+                    <input type="number" id="numStep" value="1" min="1">
+                </div>
+                <div class="increment-row">
+                    <label>Denominator Step:</label>
+                    <input type="number" id="denStep" value="1" min="1">
+                </div>
+                <div class="increment-row">
+                    <label>Max Denominator:</label>
+                    <input type="number" id="maxDen" value="10" min="1">
+                </div>
+                <button onclick="generateSequence()">Generate Sequence</button>
+                
+                <div class="auto-play">
+                    <label>Speed:</label>
+                    <input type="range" id="speed" min="100" max="2000" value="500" step="100">
+                    <span id="speedValue">500ms</span>
+                </div>
+                <button id="autoPlayBtn" onclick="toggleAutoPlay()">Start Auto-Play</button>
+            </div>
+
+            <div class="visualization-options">
+                <label for="viewMode">View Mode:</label>
+                <select id="viewMode" onchange="updateViewMode()">
+                    <option value="linear">Linear</option>
+                    <option value="logarithmic">Logarithmic</option>
+                    <option value="ford">Ford Circles</option>
+                    <option value="lattice">Lattice</option>
+                    <option value="verlet">Verlet Dynamics</option>
+                </select>
+                <div class="verlet-controls" style="display: none;">
+                    <label>Spring Constant:</label>
+                    <input type="range" id="springConstant" min="0.1" max="2" step="0.1" value="0.5">
+                    <label>Density Force:</label>
+                    <input type="range" id="densityForce" min="0.1" max="2" step="0.1" value="0.8">
+                    <label>Damping:</label>
+                    <input type="range" id="damping" min="0.1" max="0.9" step="0.1" value="0.5">
+                </div>
+                <label for="showEgyptian">Show Egyptian Fractions:</label>
+                <input type="checkbox" id="showEgyptian" onchange="updateNodeList()">
+            </div>
+            <div class="node-list" id="nodeList"></div>
+            <div class="test-mode">
+                <h3>Max Test Mode</h3>
+                <div class="increment-row">
+                    <label>Test Up To:</label>
+                    <input type="number" id="testMax" value="100" min="1">
+                </div>
+                <button onclick="runMaxTest()">Run Max Test</button>
+                <div class="test-results" id="testResults"></div>
+            </div>
+            <div class="sequence-controls">
+                <h3>Farey Sequence Generator</h3>
+                <div class="increment-row">
+                    <label>Generation Method:</label>
+                    <select id="iterationMode">
+                        <option value="sylvester">Sylvester's Method</option>
+                        <option value="stern">Stern-Brocot</option>
+                        <option value="egyptian">Egyptian</option>
+                        <option value="lattice">Lattice</option>
+                        <option value="modular">Modular</option>
+                    </select>
+                </div>
+                <div class="increment-row">
+                    <label>Order:</label>
+                    <input type="number" id="iterationCount" value="10" min="1">
+                </div>
+                <div class="increment-row">
+                    <label>Step Size:</label>
+                    <input type="number" id="stepSize" value="1" min="1">
+                </div>
+                <button onclick="generateFareySequence()">Generate Sequence</button>
+                <div class="sequence-stats" id="sequenceStats"></div>
+            </div>
+        </div>
+        <div class="visualization">
+            <canvas id="fareyCanvas" width="800" height="600"></canvas>
+            <canvas id="latticeGrid" class="lattice-grid" width="800" height="600"></canvas>
+            <div class="tooltip" id="tooltip"></div>
+            <div class="stats-panel" id="statsPanel">
+                Nodes: 0<br>
+                Density: 0<br>
+                Lattice Points: 0
+            </div>
+        </div>
+    </div>
+
+    <script src="egyptian_farey.js"></script>
+    <script>
+        const canvas = document.getElementById('fareyCanvas');
+        const ctx = canvas.getContext('2d');
+        const fareySet = new EgyptianFareyTable();
+        const tooltip = document.getElementById('tooltip');
+        let nodes = new Set();
+        let animations = new Map();
+        let viewMode = 'linear';
+        let autoPlayInterval = null;
+        let currentNum = 0;
+        let currentDen = 1;
+
+        const latticeCanvas = document.getElementById('latticeGrid');
+        const latticeCtx = latticeCanvas.getContext('2d');
+        let showLattice = false;
+
+        function drawFordCircle(x, y, radius, fraction) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${(parseInt(fraction.split('/')[0]) * 360) / parseInt(fraction.split('/')[1])}, 70%, 60%, 0.3)`;
+            ctx.fill();
+            ctx.strokeStyle = `hsla(${(parseInt(fraction.split('/')[0]) * 360) / parseInt(fraction.split('/')[1])}, 70%, 60%, 1)`;
+            ctx.stroke();
+        }
+
+        function drawNode(x, y, label, size = 20) {
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fillStyle = '#4CAF50';
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `${size * 0.8}px monospace`;
+            ctx.fillText(label, x, y);
+        }
+
+        function drawLine(x1, y1, x2, y2, fraction1, fraction2) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            
+            // Calculate mediant
+            const [num1, den1] = fraction1.split('/').map(Number);
+            const [num2, den2] = fraction2.split('/').map(Number);
+            const mediant = `${num1 + num2}/${den1 + den2}`;
+            
+            // Draw mediant point
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            drawNode(midX, midY, mediant, '#FF9800');
+        }
+
+        function calculatePosition(fraction, mode = viewMode) {
+            const [num, den] = fraction.split('/').map(Number);
+            let x;
+            
+            if (mode === 'logarithmic') {
+                x = (Math.log(num) / Math.log(den)) * (canvas.width - 100) + 50;
+            } else {
+                x = (num / den) * (canvas.width - 100) + 50;
+            }
+            
+            const y = canvas.height / 2;
+            return { x, y };
+        }
+
+        function animateNode(fraction, startPos, endPos) {
+            const startTime = performance.now();
+            const duration = 500; // ms
+            
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                const currentX = startPos.x + (endPos.x - startPos.x) * easeProgress;
+                const currentY = startPos.y + (endPos.y - startPos.y) * easeProgress;
+                
+                drawFareySet();
+                drawNode(currentX, currentY, fraction, '#4CAF50');
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        function drawFareySet() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw number line
+            ctx.beginPath();
+            ctx.moveTo(50, canvas.height / 2);
+            ctx.lineTo(canvas.width - 50, canvas.height / 2);
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+
+            const positions = new Map();
+            
+            if (viewMode === 'ford') {
+                // Draw Ford circles
+                for (let node of nodes) {
+                    const [num, den] = node.split('/').map(Number);
+                    const x = (num / den) * (canvas.width - 100) + 50;
+                    const y = canvas.height / 2;
+                    const radius = (canvas.width - 100) / (2 * den * den);
+                    drawFordCircle(x, y, radius, node);
+                    positions.set(node, { x, y });
+                }
+            } else {
+                // Draw nodes and connections
+                for (let node of nodes) {
+                    const pos = calculatePosition(node);
+                    positions.set(node, pos);
+                    drawNode(pos.x, pos.y, node);
+                }
+
+                // Draw connections and mediants
+                for (let i = 0; i < nodes.size; i++) {
+                    for (let j = i + 1; j < nodes.size; j++) {
+                        const node1 = Array.from(nodes)[i];
+                        const node2 = Array.from(nodes)[j];
+                        const pos1 = positions.get(node1);
+                        const pos2 = positions.get(node2);
+                        drawLine(pos1.x, pos1.y, pos2.x, pos2.y, node1, node2);
+                    }
+                }
+            }
+            drawLatticeGrid();
+            updateStats();
+        }
+
+        function addNode() {
+            const num = document.getElementById('numerator').value;
+            const den = document.getElementById('denominator').value;
+            
+            if (num >= 0 && den > 0 && num <= den) {
+                const fraction = `${num}/${den}`;
+                const oldPos = calculatePosition(fraction);
+                nodes.add(fraction);
+                updateNodeList();
+                const newPos = calculatePosition(fraction);
+                animateNode(fraction, oldPos, newPos);
+            }
+        }
+
+        function removeNode(fraction) {
+            const pos = calculatePosition(fraction);
+            nodes.delete(fraction);
+            updateNodeList();
+            drawFareySet();
+        }
+
+        function updateNodeList() {
+            const list = document.getElementById('nodeList');
+            list.innerHTML = '';
+            const showEgyptian = document.getElementById('showEgyptian').checked;
+            
+            Array.from(nodes).sort((a, b) => {
+                const [numA, denA] = a.split('/').map(Number);
+                const [numB, denB] = b.split('/').map(Number);
+                return (numA / denA) - (numB / denB);
+            }).forEach(fraction => {
+                const div = document.createElement('div');
+                div.className = 'node-item';
+                let egyptianRep = '';
+                if (showEgyptian) {
+                    egyptianRep = `<span class="egyptian">(${fareySet.findEgyptianRepresentation(parseInt(fraction.split('/')[0]) / parseInt(fraction.split('/')[1]))})</span>`;
+                }
+                div.innerHTML = `
+                    <span>${fraction}${egyptianRep}</span>
+                    <button onclick="removeNode('${fraction}')">Remove</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function updateViewMode() {
+            viewMode = document.getElementById('viewMode').value;
+            const verletControls = document.querySelector('.verlet-controls');
+            verletControls.style.display = viewMode === 'verlet' ? 'block' : 'none';
+            
+            if (viewMode === 'verlet') {
+                initializeVerletSystem();
+                if (!animationFrame) {
+                    animate();
+                }
+            } else {
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
+                drawFareySet();
+            }
+        }
+
+        function generateSequence() {
+            const numStep = parseInt(document.getElementById('numStep').value);
+            const denStep = parseInt(document.getElementById('denStep').value);
+            const maxDen = parseInt(document.getElementById('maxDen').value);
+            
+            nodes.clear();
+            currentNum = 0;
+            currentDen = 1;
+            
+            // Add initial nodes
+            nodes.add('0/1');
+            nodes.add('1/1');
+            
+            // Generate sequence
+            while (currentDen <= maxDen) {
+                while (currentNum <= currentDen) {
+                    if (gcd(currentNum, currentDen) === 1) {
+                        nodes.add(`${currentNum}/${currentDen}`);
+                    }
+                    currentNum += numStep;
+                }
+                currentNum = 0;
+                currentDen += denStep;
+            }
+            
+            updateNodeList();
+            drawFareySet();
+        }
+
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        function toggleAutoPlay() {
+            const button = document.getElementById('autoPlayBtn');
+            const speed = parseInt(document.getElementById('speed').value);
+            
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+                button.textContent = 'Start Auto-Play';
+            } else {
+                currentNum = 0;
+                currentDen = 1;
+                nodes.clear();
+                nodes.add('0/1');
+                nodes.add('1/1');
+                
+                autoPlayInterval = setInterval(() => {
+                    const maxDen = parseInt(document.getElementById('maxDen').value);
+                    const numStep = parseInt(document.getElementById('numStep').value);
+                    const denStep = parseInt(document.getElementById('denStep').value);
+                    
+                    if (currentDen > maxDen) {
+                        clearInterval(autoPlayInterval);
+                        autoPlayInterval = null;
+                        button.textContent = 'Start Auto-Play';
+                        return;
+                    }
+                    
+                    if (currentNum <= currentDen) {
+                        if (gcd(currentNum, currentDen) === 1) {
+                            const fraction = `${currentNum}/${currentDen}`;
+                            nodes.add(fraction);
+                            updateNodeList();
+                            drawFareySet();
+                        }
+                        currentNum += numStep;
+                    } else {
+                        currentNum = 0;
+                        currentDen += denStep;
+                    }
+                }, speed);
+                
+                button.textContent = 'Stop Auto-Play';
+            }
+        }
+
+        // Update speed display
+        document.getElementById('speed').addEventListener('input', (e) => {
+            document.getElementById('speedValue').textContent = `${e.target.value}ms`;
+        });
+
+        // Add mouse interaction
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let node of nodes) {
+                const pos = calculatePosition(node);
+                const distance = Math.sqrt(Math.pow(x - pos.x, 2) + Math.pow(y - pos.y, 2));
+                
+                if (distance < 20) {
+                    tooltip.style.left = `${e.clientX + 10}px`;
+                    tooltip.style.top = `${e.clientY + 10}px`;
+                    tooltip.textContent = `Fraction: ${node}\nDecimal: ${parseInt(node.split('/')[0]) / parseInt(node.split('/')[1])}`;
+                    tooltip.style.opacity = '1';
+                    return;
+                }
+            }
+            tooltip.style.opacity = '0';
+        });
+
+        function drawLatticeGrid() {
+            if (!showLattice) return;
+            
+            latticeCtx.clearRect(0, 0, latticeCanvas.width, latticeCanvas.height);
+            latticeCtx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+            
+            // Draw lattice points for each fraction
+            for (let node of nodes) {
+                const [num, den] = node.split('/').map(Number);
+                const x = (num / den) * (canvas.width - 100) + 50;
+                const y = canvas.height / 2;
+                
+                // Draw lattice lines
+                latticeCtx.beginPath();
+                latticeCtx.moveTo(x, 0);
+                latticeCtx.lineTo(x, canvas.height);
+                latticeCtx.stroke();
+                
+                // Draw lattice points
+                latticeCtx.beginPath();
+                latticeCtx.arc(x, y, 2, 0, Math.PI * 2);
+                latticeCtx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                latticeCtx.fill();
+            }
+        }
+
+        function updateStats() {
+            const stats = document.getElementById('statsPanel');
+            const nodeCount = nodes.size;
+            const density = nodeCount / (canvas.width - 100);
+            const latticePoints = calculateLatticePoints();
+            
+            stats.innerHTML = `
+                Nodes: ${nodeCount}<br>
+                Density: ${density.toFixed(4)}<br>
+                Lattice Points: ${latticePoints}
+            `;
+        }
+
+        function calculateLatticePoints() {
+            let count = 0;
+            for (let node of nodes) {
+                const [num, den] = node.split('/').map(Number);
+                // Count lattice points in the rectangle (0,0) to (num,den)
+                count += (num + 1) * (den + 1);
+            }
+            return count;
+        }
+
+        function runMaxTest() {
+            const testMax = parseInt(document.getElementById('testMax').value);
+            const results = document.getElementById('testResults');
+            results.innerHTML = 'Running max test...\n';
+            
+            let maxNodes = 0;
+            let maxDen = 0;
+            let densityData = [];
+            let currentN = 1;
+            let isRunning = true;
+            
+            function processNext() {
+                if (!isRunning || currentN > testMax) {
+                    // Analysis complete
+                    const growthRate = analyzeGrowthRate(densityData);
+                    results.innerHTML += `\nMax nodes: ${maxNodes} at n=${maxDen}\n`;
+                    results.innerHTML += `Growth rate: ${growthRate.toFixed(4)} nodes per n\n`;
+                    drawGrowthChart(densityData);
+                    return;
+                }
+                
+                // Process current n
+                nodes.clear();
+                currentNum = 0;
+                currentDen = 1;
+                
+                // Generate sequence up to n
+                while (currentDen <= currentN) {
+                    while (currentNum <= currentDen) {
+                        if (gcd(currentNum, currentDen) === 1) {
+                            nodes.add(`${currentNum}/${currentDen}`);
+                        }
+                        currentNum++;
+                    }
+                    currentNum = 0;
+                    currentDen++;
+                }
+                
+                const nodeCount = nodes.size;
+                if (nodeCount > maxNodes) {
+                    maxNodes = nodeCount;
+                    maxDen = currentN;
+                }
+                
+                densityData.push({
+                    n: currentN,
+                    nodes: nodeCount,
+                    density: nodeCount / currentN
+                });
+                
+                if (currentN % 10 === 0) {
+                    results.innerHTML += `n=${currentN}: ${nodeCount} nodes\n`;
+                    // Update visualization periodically
+                    updateNodeList();
+                    drawFareySet();
+                }
+                
+                currentN++;
+                
+                // Schedule next iteration
+                setTimeout(processNext, 0);
+            }
+            
+            // Add stop button
+            const stopButton = document.createElement('button');
+            stopButton.textContent = 'Stop Test';
+            stopButton.onclick = () => {
+                isRunning = false;
+                stopButton.remove();
+            };
+            results.appendChild(stopButton);
+            
+            // Start processing
+            processNext();
+        }
+
+        function analyzeGrowthRate(data) {
+            // Calculate the rate of growth using linear regression
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            const n = data.length;
+            
+            for (let i = 0; i < n; i++) {
+                sumX += data[i].n;
+                sumY += data[i].nodes;
+                sumXY += data[i].n * data[i].nodes;
+                sumX2 += data[i].n * data[i].n;
+            }
+            
+            return (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        }
+
+        function drawGrowthChart(data) {
+            const chartCanvas = document.createElement('canvas');
+            chartCanvas.width = 300;
+            chartCanvas.height = 200;
+            const chartCtx = chartCanvas.getContext('2d');
+            
+            // Draw axes
+            chartCtx.beginPath();
+            chartCtx.moveTo(20, 180);
+            chartCtx.lineTo(280, 180);
+            chartCtx.moveTo(20, 20);
+            chartCtx.lineTo(20, 180);
+            chartCtx.stroke();
+            
+            // Draw data points
+            const maxNodes = Math.max(...data.map(d => d.nodes));
+            data.forEach((point, i) => {
+                const x = 20 + (i / data.length) * 260;
+                const y = 180 - (point.nodes / maxNodes) * 160;
+                
+                chartCtx.beginPath();
+                chartCtx.arc(x, y, 2, 0, Math.PI * 2);
+                chartCtx.fill();
+            });
+            
+            document.getElementById('testResults').appendChild(chartCanvas);
+        }
+
+        function generateFareySequence() {
+            const method = document.getElementById('iterationMode').value;
+            const order = parseInt(document.getElementById('iterationCount').value);
+            const step = parseInt(document.getElementById('stepSize').value);
+            const stats = document.getElementById('sequenceStats');
+            
+            stats.innerHTML = 'Generating Farey sequence...\n';
+            
+            let sequence = [];
+            let startTime = performance.now();
+            
+            switch(method) {
+                case 'sylvester':
+                    sequence = generateSylvesterSequence(order, step);
+                    break;
+                case 'stern':
+                    sequence = generateSternBrocotSequence(order, step);
+                    break;
+                case 'egyptian':
+                    sequence = generateEgyptianSequence(order, step);
+                    break;
+                case 'lattice':
+                    sequence = generateLatticeSequence(order, step);
+                    break;
+                case 'modular':
+                    sequence = generateModularSequence(order, step);
+                    break;
+            }
+            
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            
+            // Update visualization
+            nodes.clear();
+            sequence.forEach(fraction => nodes.add(fraction));
+            updateNodeList();
+            drawFareySet();
+            
+            // Update stats
+            stats.innerHTML = `
+                Method: ${method}\n
+                Order: ${order}\n
+                Step Size: ${step}\n
+                Sequence Length: ${sequence.length}\n
+                Duration: ${duration.toFixed(2)}ms\n
+                Growth Rate: ${calculateGrowthRate(sequence).toFixed(4)}\n
+                Complexity: O(${calculateComplexity(method, order)})
+            `;
+        }
+
+        function generateSylvesterSequence(order, step) {
+            let sequence = ['0/1', '1/1'];
+            let mediants = new Set();
+            
+            // Use Sylvester's method for generating Farey sequences
+            for (let i = 0; i < order; i++) {
+                const newMediants = new Set();
+                for (let j = 0; j < sequence.length - 1; j++) {
+                    const [num1, den1] = sequence[j].split('/').map(Number);
+                    const [num2, den2] = sequence[j + 1].split('/').map(Number);
+                    
+                    const mediantNum = num1 + num2;
+                    const mediantDen = den1 + den2;
+                    
+                    if (mediantDen <= (i + 1) * step) {
+                        newMediants.add(`${mediantNum}/${mediantDen}`);
+                    }
+                }
+                
+                mediants = newMediants;
+                sequence = [...sequence, ...Array.from(mediants)].sort((a, b) => {
+                    const [numA, denA] = a.split('/').map(Number);
+                    const [numB, denB] = b.split('/').map(Number);
+                    return (numA / denA) - (numB / denB);
+                });
+            }
+            
+            return sequence;
+        }
+
+        function generateSternBrocotSequence(order, step) {
+            let sequence = ['0/1', '1/1'];
+            let queue = [[0, 1], [1, 1]];
+            
+            while (queue.length > 0 && sequence.length < order * step) {
+                const [num1, den1] = queue.shift();
+                const [num2, den2] = queue[0] || [1, 1];
+                
+                const mediantNum = num1 + num2;
+                const mediantDen = den1 + den2;
+                
+                if (mediantDen <= order * step) {
+                    sequence.push(`${mediantNum}/${mediantDen}`);
+                    queue.push([num1, den1], [mediantNum, mediantDen]);
+                }
+            }
+            
+            return sequence.sort((a, b) => {
+                const [numA, denA] = a.split('/').map(Number);
+                const [numB, denB] = b.split('/').map(Number);
+                return (numA / denA) - (numB / denB);
+            });
+        }
+
+        function calculateComplexity(method, order) {
+            switch(method) {
+                case 'sylvester':
+                    return 'n log n';  // O(n log n) for Sylvester's method
+                case 'stern':
+                    return 'n log n';  // O(n log n) for Stern-Brocot
+                case 'egyptian':
+                    return 'n²';       // O(n²) for Egyptian method
+                case 'lattice':
+                    return 'n²';       // O(n²) for Lattice method
+                case 'modular':
+                    return 'n log n';  // O(n log n) for Modular method
+                default:
+                    return 'n²';
+            }
+        }
+
+        class VerletNode {
+            constructor(x, y, fraction) {
+                this.x = x;
+                this.y = y;
+                this.oldX = x;
+                this.oldY = y;
+                this.fraction = fraction;
+                this.fixed = false;
+                this.radius = 20;
+                this.connections = new Set();
+                this.targetY = y; // Store initial y position
+                this.initialized = false;
+            }
+
+            update(dt) {
+                if (this.fixed) return;
+                
+                const vx = (this.x - this.oldX) * (1 - damping);
+                const vy = (this.y - this.oldY) * (1 - damping);
+                
+                this.oldX = this.x;
+                this.oldY = this.y;
+                
+                this.x += vx;
+                this.y += vy;
+
+                // Gradually increase density force
+                if (!this.initialized) {
+                    const [num, den] = this.fraction.split('/').map(Number);
+                    const density = 1 / (den * den);
+                    this.targetY = canvas.height / 2 - (density * canvas.height / 4);
+                    this.initialized = true;
+                }
+            }
+
+            applyForce(fx, fy) {
+                if (this.fixed) return;
+                this.x += fx;
+                this.y += fy;
+            }
+        }
+
+        class VerletSolver {
+            constructor() {
+                this.nodes = new Map();
+                this.springs = [];
+                this.dt = 1/60;
+                this.iterations = 10;
+                this.time = 0;
+                this.initializationPhase = true;
+            }
+
+            addNode(fraction) {
+                const [num, den] = fraction.split('/').map(Number);
+                // Start all nodes in a line
+                const x = (num / den) * (canvas.width - 100) + 50;
+                const y = canvas.height / 2;
+                const node = new VerletNode(x, y, fraction);
+                this.nodes.set(fraction, node);
+                return node;
+            }
+
+            solve() {
+                this.time += this.dt;
+                
+                // Apply forces
+                for (let node of this.nodes.values()) {
+                    // Initial phase: move nodes to their target positions
+                    if (this.initializationPhase) {
+                        const targetForce = (node.targetY - node.y) * 0.1;
+                        node.applyForce(0, targetForce);
+                    }
+                    
+                    // Density-based force
+                    const [num, den] = node.fraction.split('/').map(Number);
+                    const density = 1 / (den * den);
+                    const force = density * densityForce * (this.initializationPhase ? 0.1 : 1);
+                    node.applyForce(0, -force);
+                }
+
+                // Update positions
+                for (let node of this.nodes.values()) {
+                    node.update(this.dt);
+                }
+
+                // Solve constraints
+                for (let i = 0; i < this.iterations; i++) {
+                    this.solveSprings();
+                    this.solveBoundaries();
+                }
+
+                // Transition from initialization to full simulation
+                if (this.initializationPhase && this.time > 2) {
+                    this.initializationPhase = false;
+                }
+            }
+
+            solveSprings() {
+                for (let spring of this.springs) {
+                    const {node1, node2} = spring;
+                    const dx = node2.x - node1.x;
+                    const dy = node2.y - node1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const targetDistance = 100 * (this.initializationPhase ? 0.5 : 1);
+                    
+                    if (distance === 0) continue;
+                    
+                    const diff = (distance - targetDistance) / distance;
+                    const force = diff * springConstant * (this.initializationPhase ? 0.5 : 1);
+                    
+                    const fx = dx * force * 0.5;
+                    const fy = dy * force * 0.5;
+                    
+                    node1.applyForce(fx, fy);
+                    node2.applyForce(-fx, -fy);
+                }
+            }
+
+            solveBoundaries() {
+                for (let node of this.nodes.values()) {
+                    // Keep nodes within canvas bounds
+                    node.x = Math.max(node.radius, Math.min(canvas.width - node.radius, node.x));
+                    node.y = Math.max(node.radius, Math.min(canvas.height - node.radius, node.y));
+                }
+            }
+        }
+
+        let verletSolver = new VerletSolver();
+        let animationFrame = null;
+
+        function initializeVerletSystem() {
+            verletSolver = new VerletSolver();
+            
+            // Add nodes
+            for (let fraction of nodes) {
+                verletSolver.addNode(fraction);
+            }
+            
+            // Add springs between connected fractions
+            for (let i = 0; i < nodes.size; i++) {
+                for (let j = i + 1; j < nodes.size; j++) {
+                    const node1 = Array.from(nodes)[i];
+                    const node2 = Array.from(nodes)[j];
+                    const [num1, den1] = node1.split('/').map(Number);
+                    const [num2, den2] = node2.split('/').map(Number);
+                    
+                    // Connect if they're adjacent in the Farey sequence
+                    if (Math.abs(num1 * den2 - num2 * den1) === 1) {
+                        verletSolver.addSpring(
+                            verletSolver.nodes.get(node1),
+                            verletSolver.nodes.get(node2)
+                        );
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            verletSolver.solve();
+            drawVerletSystem();
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function drawVerletSystem() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw springs with opacity based on initialization phase
+            ctx.beginPath();
+            const springOpacity = verletSolver.initializationPhase ? 0.1 : 0.2;
+            ctx.strokeStyle = `rgba(0, 0, 0, ${springOpacity})`;
+            for (let spring of verletSolver.springs) {
+                const {node1, node2} = spring;
+                ctx.moveTo(node1.x, node1.y);
+                ctx.lineTo(node2.x, node2.y);
+            }
+            ctx.stroke();
+            
+            // Draw nodes with size based on denominator
+            for (let node of verletSolver.nodes.values()) {
+                const [num, den] = node.fraction.split('/').map(Number);
+                const size = 20 * (1 / Math.sqrt(den));
+                drawNode(node.x, node.y, node.fraction, size);
+            }
+        }
+
+        // Add event listeners for Verlet controls
+        document.getElementById('springConstant').addEventListener('input', (e) => {
+            springConstant = parseFloat(e.target.value);
+        });
+
+        document.getElementById('densityForce').addEventListener('input', (e) => {
+            densityForce = parseFloat(e.target.value);
+        });
+
+        document.getElementById('damping').addEventListener('input', (e) => {
+            damping = parseFloat(e.target.value);
+        });
+
+        // Initial draw
+        drawFareySet();
+    </script>
+</body>
+</html> 
